@@ -1,19 +1,59 @@
-# & { param($t, $p) ls -r -ea ig -pa $p -fi $t } *jackson*
-# & { param($t, $p) return (ls -r -ea ig -pa $p -fi $t).fullname } de*
+# Functions
+
+function ll {
+	return Get-ChildItem -Force @args
+}
+
+
+function lsl ($p='./') { 
+	return ll $p `
+		| Get-Item -stream * -ErrorAction SilentlyContinue `
+		| ForEach-Object { if($_.stream -ne ':$DATA') {$_.PSChildName} }
+}
+
+
+# ls | Get-Item -ErrorAction SilentlyContinue -stream * | ? { $_.stream -ne ':$DATA' }
+function lslcat($p) {
+	return lsl $p | ForEach-Object {
+		write-host -nonewline "### " $_ " ###`n"; Get-Content $_; Write-Output "###" "" 
+	}
+}
+
+
+# find-duplicates ./, .\a\ | tee -Var dupes
+function find-duplicates {
+	Param(
+		[Array] $paths = './',
+		[switch] $r=$False
+	)
+
+	return ll -File -Recurse:$r -Path $paths `
+		| Group-Object -Property Length `
+		| Where-Object { $_.Count -gt 1 } `
+		| ForEach-Object { $_.Group } `
+		| Get-FileHash `
+		| Group-Object -Property Hash `
+		| Where-Object { $_.Count -gt 1 } `
+		| Select-Object -ExpandProperty Group `
+		| Sort-Object -Property Hash -Unique `
+		| Select-Object -Property Path
+}
+
+
 function find-file {
-	param([
+	Param([
 		Parameter(Mandatory)]
 		[String] $pattern,
 		[String] $path
 	)
 
-	return Get-ChildItem -Path $path -Filter $pattern -Recurse -ErrorAction SilentlyContinue -Force | 
+	return ll -Path $path -Filter $pattern -Recurse -ErrorAction SilentlyContinue | 
 		Format-Wide FullName -Column 1
 }
 
-# & { param($t) ls -r | sls $t -List -ea si | %{ return $_.Path + ":" + $_.LineNumber } } "Hello"
+
 function search {
-	param([
+	Param([
 		Parameter(Mandatory)]
 		[String] $pattern,
 		[String] $path,
@@ -25,7 +65,7 @@ function search {
 		return find-file $pattern $path
 	}
 
-	return Get-ChildItem -Path $path -Recurse -ErrorAction SilentlyContinue |
+	return ll -Path $path -Recurse -ErrorAction SilentlyContinue |
 		Select-String $pattern -List -ErrorAction SilentlyContinue | 
 		ForEach-Object { return $_.Path + ":" + $_.LineNumber }
 }
@@ -36,21 +76,25 @@ function path2filename() {
         [String] $inputString,
         [String] $joinString = '-'
     )
+
     return $inputString.Split([IO.Path]::GetInvalidFileNameChars()) -join $joinString
 }
+
 
 function datestamp() {
 	return Get-Date -Format yyyy-MM-dd
 }
 
+
 function datefile() {
 	# Returns a given filename prepended with the current date.
 	# Example:
 	# nvim $(datefile foo.txt) # Opens a file named 2023-03-09-foo.txt
-
 	Param([String] $filename)
+
 	return "$(Get-Date -Format yyyy-MM-dd)-$filename"
 }
+
 
 function ReExtension() {
 	# Usage: rextension old_extension new_extension
@@ -58,29 +102,24 @@ function ReExtension() {
 	#
 	# Example: rextension txt rtf
 	# Changes all text files to rich text files in the current working directory.
-
 	Param([String] $SrcExt, [String] $DstExt)
-	Get-ChildItem "*.$SrcExt" | Rename-Item -NewName { $_.Name -Replace ".$SrcExt", ".$DstExt" }
+
+	return ll "*.$SrcExt" `
+		| Rename-Item -NewName { $_.Name -Replace ".$SrcExt", ".$DstExt" }
 }
+
 
 function GetPath {
-	Split-Path -leaf -path (Get-Location)
+	return Split-Path -Leaf -Path (Get-Location)
 }
 
-# Add Appx
-# & { $ProgressPreference = 'Ignore'; Import-Module -UseWindowsPowerShell Appx 3>$null }
-#$PSDefaultParameterValues['Import-Module:UseWindowsPowerShell'] = { 
-#	if ((Get-PSCallStack)[1].Position.Text -match '\bAppX\b') {
-#		$true
-#	} 
-#} 
 
 #Set Window Title
 function SetTitle {
 	Param($T=(GetPath))
-	#Param($T=(Split-Path -leaf -path (Get-Location)))
 	$Host.UI.RawUI.WindowTitle = $T
 }
+
 
 function Which ($Command) {
 	$out = (($full = Get-Command -Name $Command -ErrorAction SilentlyContinue) |
@@ -89,34 +128,17 @@ function Which ($Command) {
 	return $out ? $out : $full
 }
 
+
 function cdwhich ($cmd) {
-	cd (ls (gcm $cmd).path).directory
+	return Set-Location (ll (Get-Command $cmd).path).directory
 }
 
 
 function Fdiff ($a, $b) {
-	Compare-Object (Get-Content $a) (Get-Content $b)
+	return Compare-Object (Get-Content $a) (Get-Content $b)
 }
 
-# Alias functions
-function lsal { return Get-ChildItem -Force @args }
-
-# function lsl($p='./') { 
-# 	(lsal $p | get-item -stream * -ErrorAction SilentlyContinue | 
-# 		? { $_.stream -ne ':$DATA'} | % { "$($_.Filename):$($_.Stream)" }) 2>$null
-# }
-
-function lsl($p='./') { 
-	# % { Write-Output "$($_.Filename):$($_.Stream)" 
-	return lsal $p | get-item $_.FullName -stream * -ErrorAction SilentlyContinue | % { if($_.stream -ne ':$DATA') {$_.PSChildName} }
-}
-
-
-# ls | get-item -ErrorAction SilentlyContinue -stream * | ? { $_.stream -ne ':$DATA' }
-function lslcat($p) {
-	lsl $p | % { write-host -nonewline "### " $_ " ###`n"; cat $_; echo "###" "" }
-}
 
 # Aliases
-set-alias -Name ls -Value lsal -force
+Set-Alias -Name ls -Value ll -Force
 Set-Alias -Name grep -Value Select-String
