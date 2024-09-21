@@ -1,12 +1,12 @@
 # Functions
 
 function ll {
-	return Get-ChildItem -Force @args
+	Get-ChildItem -Force @args
 }
 
 
 function lsl ($p='./') { 
-	return ll $p `
+	ll $p `
 		| Get-Item -stream * -ErrorAction SilentlyContinue `
 		| ForEach-Object { if($_.stream -ne ':$DATA') {$_.PSChildName} }
 }
@@ -14,7 +14,7 @@ function lsl ($p='./') {
 
 # ls | Get-Item -ErrorAction SilentlyContinue -stream * | ? { $_.stream -ne ':$DATA' }
 function lslcat($p) {
-	return lsl $p | ForEach-Object {
+	lsl $p | ForEach-Object {
 		write-host -nonewline "### " $_ " ###`n"; Get-Content $_; Write-Output "###" "" 
 	}
 }
@@ -27,7 +27,7 @@ function find-duplicates {
 		[switch] $r=$False
 	)
 
-	return ll -File -Recurse:$r -Path $paths `
+	Get-ChildItem -Force -File -Recurse:$r -Path $paths `
 		| Group-Object -Property Length `
 		| Where-Object { $_.Count -gt 1 } `
 		| ForEach-Object { $_.Group } `
