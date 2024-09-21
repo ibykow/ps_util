@@ -1,7 +1,7 @@
 # Functions
 
 function ll {
-	Get-ChildItem -Force @args
+	return Get-ChildItem -Force @args
 }
 
 
@@ -34,9 +34,7 @@ function find-duplicates {
 		| Get-FileHash `
 		| Group-Object -Property Hash `
 		| Where-Object { $_.Count -gt 1 } `
-		| Select-Object -ExpandProperty Group `
-		| Sort-Object -Property Hash -Unique `
-		| Select-Object -Property Path
+		| ForEach-Object { $_.Group.Path[0] }
 }
 
 
