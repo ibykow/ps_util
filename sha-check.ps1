@@ -10,7 +10,10 @@ param (
         [string] $Path,
 
         [Parameter(Mandatory, HelpMessage="Checksum String")]
-        [string] $Sum
+        [string] $Sum,
+
+        [Parameter(HelpMessage="Use SHA1 instead of SHA256")]
+        [switch] $S1
 )
 
 function test_path($p) {
@@ -23,6 +26,7 @@ function test_path($p) {
 function main() {
     $p = $Path
     $s = $Sum
+    $a = If ($S1) {"SHA1"} Else {"SHA256"}
 
     if (Test-Path $Sum) {
         $p = $Sum
@@ -32,7 +36,7 @@ function main() {
         exit
     }
 
-    $h = (Get-FileHash -Algorithm SHA256 -Path $p).hash
+    $h = (Get-FileHash -Algorithm $a -Path $p).hash
 
     $diff = diff $h $s
 
