@@ -34,7 +34,7 @@ function main() {
         echo("$hB - $PathB")
     } else {
         echo("Match: $hA")
-    }sha
+    }
 }
 
 main
