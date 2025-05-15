@@ -1,8 +1,10 @@
 # usage: sound-scrape [youtube video/playlist url/id]
+#
 
 $flags = @(
     "--write-thumbnail", 
-    "--write-description"
+    "--write-description",
+    "-Pdescription,thumbnail:.info"
 )
 
 $output_template = '%(artist&{:} - |)s%(title)s [%(id)s].%(ext)s'

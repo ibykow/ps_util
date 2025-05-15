@@ -49,6 +49,12 @@ def parse_args():
         help="Download highest quality video even those larger than 1080p.",
     )
 
+    parser.add_argument(
+        "-a",
+        action="store_true",
+        help="Download the audio only.",
+    )
+
     parser.add_argument("-s", action="store_true", help="Download subtitles.")
 
     parser.add_argument(
@@ -73,10 +79,14 @@ def parse_args():
 
 def build_command(args, yt_args):
     # Determine the download format.
-    yt_format = BEST_FORMAT if args["Q"] else HD_FORMAT
-
     if args["f"]:
         yt_format = args["f"]
+    elif args["Q"]:
+        yt_format = BEST_FORMAT
+    elif args["a"]:
+        yt_format = AUDIO_FORMAT
+    else:
+        yt_format = HD_FORMAT
 
     # Create the command list with non-wrapper, and default flags.
     command = (
@@ -108,25 +118,26 @@ def build_command(args, yt_args):
 
     # Handle output template
     info_dir_template = INFO_TEMPLATE
+    output_template = SHORT_TEMPLATE
 
     if args["u"]:
         info_dir_template = ID_INFO_TEMPLATE
-        command.extend(["-o", ID_TEMPLATE])
-    else:
-        command.extend(["-o", SHORT_TEMPLATE])
+        output_template = ID_TEMPLATE
+    elif args["a"]:
+        output_template = AUDIO_TEMPLATE
 
     if not args["i"]:
-        command.extend(
-            [
-                "--write-description",
-                "--write-info-json",
-                "--no-clean-infojson",
-                "-P",
-                f"{INFO_TYPES}:{INFO_DIR}",
-                "-o",
-                f"{INFO_TYPES}:{info_dir_template}",
-            ]
-        )
+        command.extend([
+            "--write-description",
+            "--write-info-json",
+            "--no-clean-infojson",
+            "-P",
+            f"{INFO_TYPES}:{INFO_DIR}",
+            "-o",
+            f"{INFO_TYPES}:{info_dir_template}",
+        ])
+
+    command.extend(["-o", output_template])
 
     return command
 
