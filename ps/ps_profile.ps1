@@ -5,30 +5,38 @@ function ll {
 }
 
 
-function lsl ($p='./') { 
+function ls-streams($p = './') { 
 	ll $p `
-		| Get-Item -stream * -ErrorAction SilentlyContinue `
-		| ForEach-Object { if($_.stream -ne ':$DATA') {$_.PSChildName} }
+	| Get-Item -stream * -ErrorAction SilentlyContinue `
+	| where stream -ne ':$DATA'
+	| select stream, pschildname, length, filename
 }
 
 
 # ls | Get-Item -ErrorAction SilentlyContinue -stream * | ? { $_.stream -ne ':$DATA' }
-function lslcat($p) {
-	lsl $p | ForEach-Object {
-		write-host -nonewline "### " $_ " ###`n"; Get-Content $_; Write-Output "###" "" 
+function cat-streams($p) {
+	ll $p `
+	| Get-Item -stream * -ErrorAction SilentlyContinue `
+	| where stream -ne ':$DATA'
+	| select pspath
+	| convert-path
+	| % { 
+		echo $_
+		gc $_ 
+		echo ''
 	}
 }
 
 function find-size-duplicates {
 	Param(
 		[Array] $paths = './',
-		[switch] $r=$False
+		[switch] $r = $False
 	)
 
 	Get-ChildItem -Force -File -Recurse:$r -Path $paths `
-		| Group-Object -Property Length `
-		| Where-Object { $_.Count -gt 1 } `
-		| Select-Object -ExpandProperty Group
+	| Group-Object -Property Length `
+	| Where-Object { $_.Count -gt 1 } `
+	| Select-Object -ExpandProperty Group
 }
 
 
@@ -36,8 +44,8 @@ function find-size-duplicates {
 function find-duplicates {
 	Param(
 		[Array] $paths = './',
-		[switch] $r=$False,
-		[switch] $n=$False
+		[switch] $r = $False,
+		[switch] $n = $False
 	)
 
 	if ($n) {
@@ -46,10 +54,10 @@ function find-duplicates {
 	
 	# find-size-duplicates $paths $r
 	find-size-duplicates $paths $r | Get-FileHash `
-		| Group-Object -Property Hash `
-		| Where-Object { $_.Count -gt 1 } `
-		| Select-Object -ExpandProperty Group
-		# | ForEach-Object { $_.Group.Path[0] }
+	| Group-Object -Property Hash `
+	| Where-Object { $_.Count -gt 1 } `
+	| Select-Object -ExpandProperty Group
+	# | ForEach-Object { $_.Group.Path[0] }
 }
 
 
@@ -61,7 +69,7 @@ function find-file {
 	)
 
 	Get-ChildItem -Force -Path $path -exclude .git -Filter $pattern -Recurse -ErrorAction SilentlyContinue | 
-		Format-Wide FullName -Column 1
+	Format-Wide FullName -Column 1
 }
 
 
@@ -70,7 +78,7 @@ function search {
 		Parameter(Mandatory)]
 		[String] $pattern,
 		[String] $path,
-		[switch] $f=$False
+		[switch] $f = $False
 	)
 
 	if ($f) {
@@ -79,18 +87,18 @@ function search {
 	}
 
 	Get-ChildItem -Force -Path $path -Recurse -ErrorAction SilentlyContinue |
-		Select-String $pattern -List -ErrorAction SilentlyContinue | 
-		ForEach-Object { return $_.Path + ":" + $_.LineNumber }
+	Select-String $pattern -List -ErrorAction SilentlyContinue | 
+	ForEach-Object { return $_.Path + ":" + $_.LineNumber }
 }
 
 
 function path2filename() {
 	Param(
-        [String] $inputString,
-        [String] $joinString = '-'
-    )
+		[String] $inputString,
+		[String] $joinString = '-'
+	)
 
-    return $inputString.Split([IO.Path]::GetInvalidFileNameChars()) -join $joinString
+	return $inputString.Split([IO.Path]::GetInvalidFileNameChars()) -join $joinString
 }
 
 
@@ -118,7 +126,7 @@ function ReExtension() {
 	Param([String] $SrcExt, [String] $DstExt)
 
 	return ll "*.$SrcExt" `
-		| Rename-Item -NewName { $_.Name -Replace ".$SrcExt", ".$DstExt" }
+	| Rename-Item -NewName { $_.Name -Replace ".$SrcExt", ".$DstExt" }
 }
 
 
@@ -129,7 +137,7 @@ function GetPath {
 
 #Set Window Title
 function SetTitle {
-	Param($T=(GetPath))
+	Param($T = (GetPath))
 	$Host.UI.RawUI.WindowTitle = $T
 }
 
@@ -151,7 +159,21 @@ function Fdiff ($a, $b) {
 	return Compare-Object (Get-Content $a) (Get-Content $b)
 }
 
+function mkcd {
+	Param([
+		Parameter(Mandatory)]
+		[String] $path
+	)
+	cd (mkdir -force $path)
+}
+
+
 
 # Aliases
-Set-Alias -Name ls -Value ll -Force
+# Set-Alias -Name ls -Value ll -Force
 Set-Alias -Name grep -Value Select-String
+
+
+# $PSDefaultParameterValues = @{‘Get-ChildItem:Force’ = $True}
+
+SetTitle
