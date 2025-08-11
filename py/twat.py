@@ -96,7 +96,7 @@ def build_command(args, yt_args):
     )
 
     if args["c"]:
-        command.extend(["--cookies-from-browser", "firefox"])
+        command.extend(["--cookies-from-browser", "firefox:ahorj4jn.breemandrew"])
 
     if not args["w"]:
         command.extend(["--no-overwrites"])
