@@ -172,6 +172,7 @@ function mkcd {
 # Aliases
 # Set-Alias -Name ls -Value ll -Force
 Set-Alias -Name grep -Value Select-String
+Set-Alias -Name exists -Value Test-Path
 
 
 # $PSDefaultParameterValues = @{‘Get-ChildItem:Force’ = $True}
