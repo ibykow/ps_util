@@ -135,6 +135,8 @@ def build_command(args, yt_args):
             f"{INFO_TYPES}:{INFO_DIR}",
             "-o",
             f"{INFO_TYPES}:{info_dir_template}",
+            "--extractor-args",
+            "youtube:player_client=default",
         ])
 
     command.extend(["-o", output_template])
