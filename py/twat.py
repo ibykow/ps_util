@@ -187,29 +187,11 @@ def download_uri(command, uri):
     return result
 
 
-def download_file(command, uri):
-    failed = []
-
-    with open(uri) as file:
-        while line := file.readline():
-            url = line.strip()
-
-            if not url or url[0] == "#":
-                continue
-
-            result = download_uri(command, url)
-
-            if result.returncode:
-                failed.append(url)
-
-    return failed
-
-
 def process_command(command, uri):
     failed = []
 
     if os.path.isfile(uri):
-        failed = download_file(command, uri)
+        failed = download_uri(command + ["-a"], uri)
     else:
         result = download_uri(command, uri)
         if result.returncode:
