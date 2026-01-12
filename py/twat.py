@@ -72,7 +72,7 @@ def parse_args():
         "-x", action="store_true", help="Skip download.", dest="skip-download"
     )
 
-    parser.add_argument("URI", help="Twitter URL, or filename.")
+    parser.add_argument("URI", help="Twitter URL, or filename.", nargs='+')
 
     return parser.parse_known_args()
 
@@ -186,11 +186,20 @@ def download_uri(command, uri):
 
     return result
 
+def process_urls(command, urls):
+    failed = []
+    for url in urls:
+        result = download_uri(command, url)
+        if result.returncode:
+            failed.append(url)
+    return failed
 
 def process_command(command, uri):
     failed = []
 
-    if os.path.isfile(uri):
+    if type(uri) is list:
+        failed = process_urls(command, uri)
+    elif os.path.isfile(uri):
         failed = download_uri(command + ["-a"], uri)
     else:
         result = download_uri(command, uri)
