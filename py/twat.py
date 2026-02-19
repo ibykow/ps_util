@@ -3,6 +3,7 @@
 import argparse
 import subprocess
 import os
+import sys
 import colorama
 import requests
 
@@ -257,6 +258,10 @@ def get_yt_thumbnail(url):
 
 
 def main():
+    # Fix for UnicodeEncodeError: Force UTF-8 for all print output
+    if sys.stdout.encoding != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
+
     arg_ns, yt_args = parse_args()
     args = vars(arg_ns)
     uri = args.pop("URI")
