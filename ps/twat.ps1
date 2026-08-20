@@ -1,3 +1,3 @@
 #! /opt/microsoft/powershell/7/pwsh
 
-py $(which twat.py) $args
+& python "$(which twat.py)" $args
