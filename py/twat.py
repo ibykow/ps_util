@@ -92,8 +92,9 @@ def build_command(args, yt_args):
     # Create the command list with non-wrapper, and default flags.
     command = (
         ["yt-dlp"]
+        + ["--windows-filenames"]
         + yt_args
-        + ["-f", yt_format, "-S", "tbr,size", "--windows-filenames"]
+        + ["-f", yt_format, "-S", "tbr,size",]
     )
 
     if args["c"]:
@@ -137,7 +138,8 @@ def build_command(args, yt_args):
             "-o",
             f"{INFO_TYPES}:{info_dir_template}",
             "--extractor-args",
-            "youtube:player_client=default",
+            # "youtube:player_client=default",
+            "youtube:player_client=web_embedded,web,tv"
         ])
 
     command.extend(["-o", output_template])
