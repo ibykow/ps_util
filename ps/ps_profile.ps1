@@ -167,13 +167,19 @@ function mkcd {
 	cd (mkdir -force $path)
 }
 
-
-
 # Aliases
 # Set-Alias -Name ls -Value ll -Force
 Set-Alias -Name grep -Value Select-String
 Set-Alias -Name exists -Value Test-Path
 
+# Disable QuickEdit Mode to prevent various, unexpected freezes.
+#[Console]::QuickEdit = $false
+
+# Load the QuickEdit helper function
+#. "C:\Users\z\code\int\ps\Set-ConsoleQuickEdit.ps1"
+
+# Run it to turn off QuickEdit by default
+#Set-ConsoleQuickEdit -Enabled $false
 
 # $PSDefaultParameterValues = @{‘Get-ChildItem:Force’ = $True}
 
