@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+    <ViewDefinitions>
+        <View>
+            <Name>children</Name>
+            <ViewSelectedBy>
+                <TypeName>System.IO.FileInfo</TypeName>
+                <TypeName>System.IO.DirectoryInfo</TypeName>
+            </ViewSelectedBy>
+            <TableControl>
+                <TableHeaders>
+                    <TableColumnHeader>
+                        <Label>Mode</Label>
+                        <Width>7</Width>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
+                        <Label>LastWriteTime</Label>
+                        <Width>20</Width>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
+                        <Label>Size</Label>
+                        <Width>12</Width>
+                        <Alignment>Right</Alignment>
+                    </TableColumnHeader>
+                    <TableColumnHeader>
+                        <Label>Name</Label>
+                    </TableColumnHeader>
+                </TableHeaders>
+                <TableRowEntries>
+                    <TableRowEntry>
+                        <TableColumnItems>
+                            <TableColumnItem>
+                                <PropertyName>Mode</PropertyName>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <ScriptBlock>
+                                    [String]::Format('{0,10}{1,8}', $_.LastWriteTime.ToString('d'), $_.LastWriteTime.ToString('t'))
+                                </ScriptBlock>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <ScriptBlock>
+                                    if ($_.PSIsContainer) { "" }
+                                    else {
+                                        switch ($_.Length) {
+                                            { $_ -ge 1TB } { "{0:N2}`e[38;5;197mT`e[0m" -f ($_ / 1TB); break }
+                                            { $_ -ge 1GB } { "{0:N2}`e[38;5;196mG`e[0m" -f ($_ / 1GB); break }
+                                            { $_ -ge 1MB } { "{0:N2}`e[38;5;214mM`e[0m" -f ($_ / 1MB); break }
+                                            { $_ -ge 1KB } { "{0:N2}`e[38;5;244mK`e[0m" -f ($_ / 1KB); break }
+                                            Default        { "`e[38;5;238m{0} B`e[0m" -f $_ }
+                                        }
+                                    }
+                                </ScriptBlock>
+                            </TableColumnItem>
+                            <TableColumnItem>
+                                <ScriptBlock>
+                                    if (Get-Module Terminal-Icons) {
+                                        Terminal-Icons\Format-TerminalIcons $_
+                                    } else {
+                                        $_.Name
+                                    }
+                                </ScriptBlock>
+                            </TableColumnItem>
+                        </TableColumnItems>
+                    </TableRowEntry>
+                </TableRowEntries>
+            </TableControl>
+        </View>
+    </ViewDefinitions>
+</Configuration>
