@@ -1,15 +1,15 @@
-#! python
+#!/usr/bin/env python3
 
 import argparse
 import subprocess
+import shutil
 import os
 import sys
 import colorama
-import requests
 
 # Filesystem
 FILENAME_MAXLEN = 128
-SOURCES_FILENAME = ".yt_info\source-urls.txt"
+SOURCES_FILENAME = ".yt_info\\source-urls.txt"
 INFO_TYPES = "infojson,description"
 INFO_DIR = ".yt_info"
 SUBS_DIR = "Subs"
@@ -20,13 +20,14 @@ BEST_FORMAT = "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/b"
 HD_FORMAT = "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=1080][ext=mp4] / bv*+ba/b"
 
 # Templates
-DEFAULT_TEMPLATE = "%(title)s [%(id)s].%(ext)s"
 AUDIO_TEMPLATE = "%(artist&{:} - |)s%(title)s [%(id)s].%(ext)s"
-DOMAIN_TEMPLATE = "%(webpage_url_domain)s,%(id)s"
 ID_TEMPLATE = "%(id)s.%(ext)s"
 ID_INFO_TEMPLATE = "%(id)s.%(ext)s/%(original_url)s-%(id)s.%(ext)s"
 INFO_TEMPLATE = f"%(title).{FILENAME_MAXLEN}s [%(id)s]/%(original_url)s-%(id)s.%(ext)s"
 SHORT_TEMPLATE = f"%(title).{FILENAME_MAXLEN}s [%(id)s].%(ext)s"
+
+# Other
+DEFAULT_BROWSER_PROFILE = "firefox"
 
 
 def parse_args():
@@ -73,7 +74,9 @@ def parse_args():
         "-x", action="store_true", help="Skip download.", dest="skip-download"
     )
 
-    parser.add_argument("URI", help="Twitter URL, or filename.", nargs='+')
+    parser.add_argument(
+        "URI", help="URL or filename containing a list of URLs.", nargs="+"
+    )
 
     return parser.parse_known_args()
 
@@ -94,11 +97,22 @@ def build_command(args, yt_args):
         ["yt-dlp"]
         + ["--windows-filenames"]
         + yt_args
-        + ["-f", yt_format, "-S", "tbr,size",]
+        + [
+            "-f",
+            yt_format,
+            "-S",
+            "tbr,size",
+        ]
     )
 
     if args["c"]:
-        command.extend(["--cookies-from-browser", "firefox:ahorj4jn.breemandrew"])
+        # Allow overriding the browser profile via TWAT_BROWSER_PROFILE.
+        # Falls back to bare "firefox" (default profile) if unset.
+        browser = (
+            os.environ.get("TWAT_BROWSER_PROFILE", DEFAULT_BROWSER_PROFILE)
+            or DEFAULT_BROWSER_PROFILE
+        )
+        command.extend(["--cookies-from-browser", browser])
 
     if not args["w"]:
         command.extend(["--no-overwrites"])
@@ -129,18 +143,20 @@ def build_command(args, yt_args):
         output_template = AUDIO_TEMPLATE
 
     if not args["i"]:
-        command.extend([
-            "--write-description",
-            "--write-info-json",
-            "--no-clean-infojson",
-            "-P",
-            f"{INFO_TYPES}:{INFO_DIR}",
-            "-o",
-            f"{INFO_TYPES}:{info_dir_template}",
-            "--extractor-args",
-            # "youtube:player_client=default",
-            "youtube:player_client=web_embedded,web,tv"
-        ])
+        command.extend(
+            [
+                "--write-description",
+                "--write-info-json",
+                "--no-clean-infojson",
+                "-P",
+                f"{INFO_TYPES}:{INFO_DIR}",
+                "-o",
+                f"{INFO_TYPES}:{info_dir_template}",
+                "--extractor-args",
+                # "youtube:player_client=default",
+                "youtube:player_client=web_embedded,web,tv",
+            ]
+        )
 
     command.extend(["-o", output_template])
 
@@ -151,9 +167,10 @@ def update_sources(uri):
     if not os.path.exists(INFO_DIR):
         return
 
-    with open(SOURCES_FILENAME, "a") as a, open(SOURCES_FILENAME, "r") as r:
-        if not uri in r.read():
-            a.write(uri + "\n")
+    with open(SOURCES_FILENAME, "a+") as f:
+        if uri not in f.read():
+            f.seek(0, os.SEEK_END)
+            f.write(uri + "\n")
 
 
 def run_command(cmd, capture_output=False):
@@ -189,6 +206,7 @@ def download_uri(command, uri):
 
     return result
 
+
 def process_urls(command, urls):
     failed = []
     for url in urls:
@@ -197,72 +215,38 @@ def process_urls(command, urls):
             failed.append(url)
     return failed
 
-def process_command(command, uri):
-    failed = []
 
-    if type(uri) is list:
-        failed = process_urls(command, uri)
-    elif os.path.isfile(uri):
-        failed = download_uri(command + ["-a"], uri)
-    else:
-        result = download_uri(command, uri)
-        if result.returncode:
-            failed = [uri]
+def process_command(command, items):
+    # `items` is the list of CLI URIs (nargs='+'); each element may be a
+    # single URL or a file containing a list of URLs. Expand any files into
+    # their contained URLs so every entry is downloaded individually with the
+    # normal retry / source-tracking / failure-reporting logic.
+    urls = []
+
+    for item in items:
+        if not os.path.isfile(item):
+            urls.append(item)
+            continue
+        with open(item, "r", encoding="utf-8-sig") as f:
+            urls.extend([s for s in map(str.strip, f) if s and not s.startswith("#")])
+
+    failed = process_urls(command, urls)
 
     if failed:
         print(colorama.Fore.RED + "Failed to download the following URL(s):")
         print(colorama.Fore.RED + "\n".join(failed))
 
 
-def get_info(url):
-    id_cmd = ["yt-dlp", "-O", DOMAIN_TEMPLATE, url]
-    result = run_command(id_cmd, True)
-
-    if result.returncode:
-        return [""]
-
-    info = result.stdout.rstrip().split(",")
-
-    return info
-
-
-def get_yt_id(url):
-    info = get_info(url)
-
-    if info[0] == "youtube.com" and len(info) > 1:
-        return info[1]
-
-    return ""
-
-
-def get_yt_thumbnail(url):
-    yt_id = get_yt_id(url)
-
-    tn_url = f"https://i.ytimg.com/vi/{yt_id}/maxresdefault.jpg"
-
-    print("Downloading thumbnail from", tn_url)
-
-    response = requests.get(tn_url, stream=True)
-
-    if not response.ok:
-        print(colorama.Fore.RED + f"Could not download thumbnail for {yt_id}")
-        return False
-
-    t_dir = f"{INFO_DIR}/thumbnails"
-
-    if not os.path.exists(t_dir):
-        os.makedirs(t_dir)
-
-    with open(f"{t_dir}/{yt_id}.jpg", "wb") as file:
-        file.write(response.content)
-
-    return True
-
-
 def main():
     # Fix for UnicodeEncodeError: Force UTF-8 for all print output
-    if sys.stdout.encoding != 'utf-8':
-        sys.stdout.reconfigure(encoding='utf-8')
+    if sys.stdout.encoding != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8")
+
+    # Problem 13: bail out immediately if yt-dlp isn't available.
+    if shutil.which("yt-dlp") is None:
+        sys.exit(
+            "Error: yt-dlp not found on PATH. Install yt-dlp or add it to your PATH."
+        )
 
     arg_ns, yt_args = parse_args()
     args = vars(arg_ns)
